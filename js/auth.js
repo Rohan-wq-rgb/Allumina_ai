@@ -1,6 +1,8 @@
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+const API_ORIGIN = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://127.0.0.1:5000'
-    : 'https://allumina-ai.onrender.com') + '/api/auth';
+    : 'https://allumina-ai.onrender.com';
+
+const API_BASE = `${API_ORIGIN}/api/auth`;
 
 let isLoginMode = true;
 
@@ -14,6 +16,7 @@ const messageDiv = document.getElementById('auth-message');
 
 function toggleMode() {
     isLoginMode = !isLoginMode;
+
     if (isLoginMode) {
         title.textContent = 'Welcome back';
         subtitle.textContent = 'Sign in to continue';
@@ -27,6 +30,9 @@ function toggleMode() {
         switchText.textContent = 'Already have an account?';
         switchLink.textContent = 'Sign in';
     }
+
+    messageDiv.textContent = '';
+    messageDiv.className = 'message';
 }
 
 switchLink.addEventListener('click', (e) => {
@@ -36,11 +42,14 @@ switchLink.addEventListener('click', (e) => {
 
 form.addEventListener('submit', async (e) => {
     e.preventDefault();
+
     const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+
     if (!email || !password) return;
 
     const endpoint = isLoginMode ? `${API_BASE}/login` : `${API_BASE}/signup`;
+
     try {
         const res = await fetch(endpoint, {
             method: 'POST',
@@ -48,10 +57,16 @@ form.addEventListener('submit', async (e) => {
             credentials: 'include',
             body: JSON.stringify({ email, password })
         });
+
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Request failed');
+
+        if (!res.ok) {
+            throw new Error(data.error || 'Request failed');
+        }
+
         messageDiv.className = 'message success';
         messageDiv.textContent = data.message;
+
         setTimeout(() => {
             window.location.href = 'index.html';
         }, 1000);
@@ -66,11 +81,14 @@ async function checkSession() {
         const res = await fetch(`${API_BASE}/session`, {
             credentials: 'include'
         });
+
         const data = await res.json();
+
         if (data.logged_in) {
             window.location.href = 'index.html';
         }
     } catch (e) {
+        // Stay on login page
     }
 }
 
