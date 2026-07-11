@@ -1,6 +1,8 @@
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+const API_ORIGIN = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://127.0.0.1:5000'
-    : 'https://allumina-ai.onrender.com') + '/api';
+    : 'https://allumina-ai.onrender.com';
+
+const API_BASE = `${API_ORIGIN}/api`;
 
 const chatMessages = document.getElementById('chat-messages');
 const emptyState = document.getElementById('empty-state');
@@ -20,11 +22,11 @@ let chats = [];
 
 if (typeof marked !== 'undefined') {
     marked.setOptions({
-        highlight: function(code, lang) {
-            if (lang && hljs.getLanguage(lang)) {
+        highlight: function (code, lang) {
+            if (lang && typeof hljs !== 'undefined' && hljs.getLanguage(lang)) {
                 return hljs.highlight(code, { language: lang }).value;
             }
-            return hljs.highlightAuto(code).value;
+            return typeof hljs !== 'undefined' ? hljs.highlightAuto(code).value : code;
         },
         breaks: true
     });
@@ -35,10 +37,12 @@ async function checkSession() {
         const res = await fetch(`${API_BASE}/auth/session`, {
             credentials: 'include'
         });
+
         if (!res.ok) {
             window.location.href = 'login.html';
             return;
         }
+
         const data = await res.json();
         if (!data.logged_in) {
             window.location.href = 'login.html';
@@ -53,6 +57,7 @@ async function loadChats() {
         const res = await fetch(`${API_BASE}/chats`, {
             credentials: 'include'
         });
+
         if (res.ok) {
             chats = await res.json();
             renderChatList();
@@ -70,10 +75,10 @@ function renderChatList() {
         </div>
     `).join('');
 
-    document.querySelectorAll('.chat-list-item .chat-title').forEach(el => {
-        el.parentElement.addEventListener('click', (e) => {
+    document.querySelectorAll('.chat-list-item').forEach(item => {
+        item.addEventListener('click', (e) => {
             if (e.target.classList.contains('delete-chat')) return;
-            const id = parseInt(el.parentElement.dataset.id);
+            const id = parseInt(item.dataset.id);
             openChat(id);
         });
     });
@@ -95,11 +100,14 @@ function escapeHtml(text) {
 
 async function openChat(chatId) {
     currentChatId = chatId;
+
     try {
         const res = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
             credentials: 'include'
         });
+
         if (!res.ok) return;
+
         const data = await res.json();
         currentChatTitle.textContent = data.title || 'Chat';
         renderMessages(data.messages);
@@ -115,12 +123,14 @@ async function deleteChat(chatId) {
             method: 'DELETE',
             credentials: 'include'
         });
+
         if (currentChatId === chatId) {
             currentChatId = null;
             currentChatTitle.textContent = 'New Chat';
             chatMessages.innerHTML = '';
             emptyState.style.display = 'flex';
         }
+
         loadChats();
     } catch (e) {
         console.error('Failed to delete chat:', e);
@@ -129,11 +139,15 @@ async function deleteChat(chatId) {
 
 function renderMessages(messages) {
     emptyState.style.display = 'none';
+
     chatMessages.innerHTML = messages.map(msg => `
         <div class="message-bubble ${msg.role}">
-            ${msg.role === 'assistant' && typeof marked !== 'undefined' ? marked.parse(msg.content) : escapeHtml(msg.content)}
+            ${msg.role === 'assistant' && typeof marked !== 'undefined'
+                ? marked.parse(msg.content)
+                : escapeHtml(msg.content)}
         </div>
     `).join('');
+
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
     document.querySelectorAll('pre code').forEach(block => {
@@ -145,21 +159,20 @@ function renderMessages(messages) {
 
 messageForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
     const message = messageInput.value.trim();
     if (!message) return;
 
     const formData = new FormData();
     formData.append('message', message);
+
     if (fileInput.files.length > 0) {
         formData.append('file', fileInput.files[0]);
     }
 
-    let endpoint;
-    if (!currentChatId) {
-        endpoint = `${API_BASE}/chats`;
-    } else {
-        endpoint = `${API_BASE}/chats/${currentChatId}/messages`;
-    }
+    const endpoint = !currentChatId
+        ? `${API_BASE}/chats`
+        : `${API_BASE}/chats/${currentChatId}/messages`;
 
     const userBubble = document.createElement('div');
     userBubble.className = 'message-bubble user';
@@ -178,7 +191,9 @@ messageForm.addEventListener('submit', async (e) => {
             body: formData
         });
 
-        if (!res.ok) throw new Error('Failed to send message');
+        if (!res.ok) {
+            throw new Error('Failed to send message');
+        }
 
         const data = await res.json();
 
@@ -190,6 +205,7 @@ messageForm.addEventListener('submit', async (e) => {
             const msgsRes = await fetch(`${API_BASE}/chats/${currentChatId}/messages`, {
                 credentials: 'include'
             });
+
             if (msgsRes.ok) {
                 const fullData = await msgsRes.json();
                 renderMessages(fullData.messages);
@@ -200,6 +216,7 @@ messageForm.addEventListener('submit', async (e) => {
             assistantBubble.innerHTML = typeof marked !== 'undefined'
                 ? marked.parse(data.assistant_message.content)
                 : escapeHtml(data.assistant_message.content);
+
             chatMessages.appendChild(assistantBubble);
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
@@ -239,11 +256,13 @@ logoutBtn.addEventListener('click', async () => {
     } catch (e) {
         console.error('Logout error:', e);
     }
+
     window.location.href = 'login.html';
 });
 
 darkModeToggle.addEventListener('click', () => {
     const isDark = document.body.getAttribute('data-theme') === 'dark';
+
     if (isDark) {
         document.body.removeAttribute('data-theme');
         localStorage.setItem('theme', 'light');
