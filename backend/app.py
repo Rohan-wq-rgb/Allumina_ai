@@ -21,7 +21,18 @@ def create_app():
     app = Flask(__name__, static_folder=ROOT_DIR, static_url_path="")
     app.config.from_object(Config)
 
-    CORS(app, supports_credentials=True, origins="*")
+    app.config.update(
+        SESSION_COOKIE_SAMESITE="None",
+        SESSION_COOKIE_SECURE=True,
+    )
+
+    cors_origins = os.environ.get(
+        "CORS_ORIGINS",
+        "https://rohan-wq-rgb.github.io,http://localhost:5500,http://127.0.0.1:5500,http://localhost:8000,http://127.0.0.1:8000"
+    ).split(",")
+
+    CORS(app, supports_credentials=True, origins=[o.strip() for o in cors_origins if o.strip()])
+
     db.init_app(app)
 
     with app.app_context():
